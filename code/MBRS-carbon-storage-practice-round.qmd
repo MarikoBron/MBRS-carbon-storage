@@ -11,7 +11,7 @@ execute:
 warning: false # use this to make sure warnings don't show up
 ---
 
-```{packages-and-data}
+```{r packages-and-data}
 
 #installing packages
 library(tidyverse)
@@ -26,6 +26,33 @@ library(plotly) # JS plots!
 library(DT) # JS tables!
 library(leaflet) # JS maps!
 library(leaflet.extras) # leaflet add-ons!
+library(lme4)
+library(ggplot2)
+library(emmeans)
+library(performance)
+
+raw_practice <- read_csv("data/blue-carbon-R-raw-data-post-combustion.csv")
+
+```
+
+```{r clean}
+
+clean_practice <- clean_names(raw_practice) |> 
+mutate(vegetation_type = as_factor(vegetation_type), #convert to factor
+        vegetation_type = fct_relevel(vegetation_type,  #reorder
+                                        "Unveg",
+                                        "Mangrove",
+                                        "Seagrass")) |> 
+  mutate(site = as_factor(site),
+         site = fct_relevel(site, #convert to factor and reorder
+                            "Adams",
+                            "One Mile",
+                            "Myora")) |> 
+  select(sample_id, vegetation_type, site, mangroves, bulk_density_g_cm_3, percent_loi_percent_lost_on_ignition, carbon_stock_t_ha_tons_per_hectare) |> 
+  #select columns for chart
+  rename(bulk_density = bulk_density_g_cm_3,
+         percent_loi = percent_loi_percent_lost_on_ignition,
+         carbon_stock = carbon_stock_t_ha_tons_per_hectare) #rename columns
 
 ```
 
