@@ -47,12 +47,70 @@ mutate(vegetation_type = as_factor(vegetation_type), #convert to factor
          site = fct_relevel(site, #convert to factor and reorder
                             "Adams",
                             "One Mile",
-                            "Myora")) |> 
+                            "Myora"),
+         sample_id = str_remove(sample_id, "\\*")) |> 
   select(sample_id, vegetation_type, site, mangroves, bulk_density_g_cm_3, percent_loi_percent_lost_on_ignition, carbon_stock_t_ha_tons_per_hectare) |> 
-  #select columns for chart
+  #select columns for table
   rename(bulk_density = bulk_density_g_cm_3,
          percent_loi = percent_loi_percent_lost_on_ignition,
-         carbon_stock = carbon_stock_t_ha_tons_per_hectare) #rename columns
+         carbon_stock = carbon_stock_t_ha_tons_per_hectare,
+         mangrove_proximity = mangroves) #rename columns
 
 ```
 
+
+```{r initial analyses}
+
+summary(clean_practice)
+
+```
+
+
+```{r carbon-stock-scatterplot}
+
+ggplot(data = clean_practice) +
+  geom_jitter(
+       aes(x = mangrove_proximity,
+       y = carbon_stock,
+       color = vegetation_type),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Proximity to Mangroves",
+        y = "Carbon Stock (t/ha)",
+        color = "Vegetation Type",
+        title = "Effects of proximity of mangrove forests to seagrass meadows on sediment carbon stock") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482277","#287D8E", "#B8DE29"))
+
+```
+
+```{r unveg data}
+
+unveg_data <- clean_practice |> 
+  filter(vegetation_type == "Unveg") |> 
+   separate(sample_id, 
+           into = c("habitat_code", "site_code", "depth"), 
+           sep = "\\.",  # Split on periods
+           remove = FALSE) |>   # Keep original sample_id column
+  mutate(depth = as.numeric(depth)) |>  # Convert depth to number 
+select(habitat_code, depth, mangrove_proximity, carbon_stock)
+
+
+```
+
+```{r seagrass data}
+
+seagrass_data <- clean_practice |> 
+  filter(vegetation_type == "Seagrass")
+
+```
+
+
+  select(habitat_code, depth, mangrove_proximity, carbon_stock)
