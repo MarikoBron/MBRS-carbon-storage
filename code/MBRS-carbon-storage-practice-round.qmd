@@ -30,6 +30,7 @@ library(lme4)
 library(ggplot2)
 library(emmeans)
 library(performance)
+library(rstatix)
 
 raw_practice <- read_csv("data/blue-carbon-R-raw-data-post-combustion.csv")
 
@@ -54,7 +55,10 @@ mutate(vegetation_type = as_factor(vegetation_type), #convert to factor
   rename(bulk_density = bulk_density_g_cm_3,
          percent_loi = percent_loi_percent_lost_on_ignition,
          carbon_stock = carbon_stock_t_ha_tons_per_hectare,
-         mangrove_proximity = mangroves) #rename columns
+         mangrove_proximity = mangroves)  #rename columns
+
+unfindata <- head(clean_practice, 126) |> 
+  filter(!sample_id %in% c("S.2.4", "S.2.10"))
 
 ```
 
@@ -62,13 +66,25 @@ mutate(vegetation_type = as_factor(vegetation_type), #convert to factor
 ```{r initial analyses}
 
 summary(clean_practice)
+unfindata |> 
+  group_by(vegetation_type, mangrove_proximity) |> 
+shapiro_test(carbon_stock)
+
+kruskal.test(carbon_stock ~ interaction(vegetation_type, mangrove_proximity), 
+             data = unfindata)
+
+
+ggplot(unfindata, aes(x = carbon_stock, fill = mangrove_proximity)) +
+  geom_density(alpha = 0.6)
+
+anova
 
 ```
 
 
 ```{r carbon-stock-scatterplot}
 
-ggplot(data = clean_practice) +
+ggplot(data = unfindata) +
   geom_jitter(
        aes(x = mangrove_proximity,
        y = carbon_stock,
@@ -89,11 +105,13 @@ ggplot(data = clean_practice) +
   )+
   scale_colour_manual(values = c("#482277","#287D8E", "#B8DE29"))
 
+
+
 ```
 
 ```{r unveg data}
 
-unveg_data <- clean_practice |> 
+unveg_data <- unfindata |> 
   filter(vegetation_type == "Unveg") |> 
    separate(sample_id, 
            into = c("habitat_code", "site_code", "depth"), 
@@ -102,13 +120,61 @@ unveg_data <- clean_practice |>
   mutate(depth = as.numeric(depth)) |>  # Convert depth to number 
 select(habitat_code, depth, mangrove_proximity, carbon_stock)
 
+ggplot(data = unveg_data) +
+  geom_jitter(
+       aes(x = depth,
+       y = carbon_stock,
+       color = mangrove_proximity),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Depth of Sample (cm)",
+        y = "Carbon Stock (t/ha)",
+        color = "Proximity to Mangroves",
+        title = "Carbon Storage VS Depth of Soil Sample in Unvegetated Areas") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482250","#287D5E", "#B8DE55"))
+
 
 ```
 
 ```{r seagrass data}
 
-seagrass_data <- clean_practice |> 
-  filter(vegetation_type == "Seagrass")
+seagrass_data <- unfindata |> 
+  filter(vegetation_type == "Seagrass") |> 
+   separate(sample_id, 
+           into = c("habitat_code", "site_code", "depth"), 
+           sep = "\\.",  # Split on periods
+           remove = FALSE) |>   # Keep original sample_id column
+  mutate(depth = as.numeric(depth)) |>  # Convert depth to number 
+select(habitat_code, depth, mangrove_proximity, carbon_stock)
+
+ggplot(data = seagrass_data) +
+  geom_jitter(
+       aes(x = depth,
+       y = carbon_stock,
+       color = mangrove_proximity),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Depth of Sample (cm)",
+        y = "Carbon Stock (t/ha)",
+        color = "Proximity to Mangroves",
+        title = "Carbon Storage VS Depth of Soil Sample in Seagrass Areas") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482285","#287D9E", "#B8DE11"))
 
 ```
 

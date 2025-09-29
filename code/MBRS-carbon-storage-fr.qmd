@@ -1,0 +1,69 @@
+---
+title: "Moreton Bay Research Center - Carbon Storage"
+subtitle: "Carbon Sequestration in Seagrass Meadows in Relation to Proximity to Mangrove Forests"
+author: "Mariko Bronson"
+date: "27-09-2025"
+format:
+  html:
+  toc: true # use this to display a table of contents
+execute:
+  message: false # use this to make sure messages don't show up
+warning: false # use this to make sure warnings don't show up
+---
+
+```{r packages-and-data}
+
+#installing packages
+library(tidyverse)
+library(here)
+library(janitor)
+library(flextable)
+library(readxl)
+library(ggplot2)
+library(colorspace)
+library(dplyr) 
+library(plotly) # JS plots!
+library(DT) # JS tables!
+library(leaflet) # JS maps!
+library(leaflet.extras) # leaflet add-ons!
+library(lme4)
+library(ggplot2)
+library(emmeans)
+library(performance)
+library(rstatix)
+
+raw_data <- read_csv("data/blue-carbon-R-raw-data-post-combustion-2.csv")
+
+```
+
+```{r clean}
+
+clean_practice <- clean_names(raw_data) |> 
+mutate(vegetation_type = as_factor(vegetation_type), #convert to factor
+        vegetation_type = fct_relevel(vegetation_type,  #reorder
+                                        "Unveg",
+                                        "Mangrove",
+                                        "Seagrass")) |> 
+  mutate(site = as_factor(site),
+         site = fct_relevel(site, #convert to factor and reorder
+                            "Adams",
+                            "One Mile",
+                            "Myora"),
+         sample_id = str_remove(sample_id, "\\*")) |> 
+  select(sample_id, vegetation_type, site, mangroves, bulk_density_g_cm_3, percent_loi_percent_lost_on_ignition, carbon_stock_t_ha_tons_per_hectare) |> 
+  #select columns for table
+  rename(bulk_density = bulk_density_g_cm_3,
+         percent_loi = percent_loi_percent_lost_on_ignition,
+         carbon_stock = carbon_stock_t_ha_tons_per_hectare,
+         mangrove_proximity = mangroves)  #rename columns
+
+unfindata <- clean_practice |> 
+  filter(!sample_id %in% c("S.2.4", "S.2.10", "U.2.40"))
+
+unfindata %>%
+  filter(vegetation_type == "Seagrass") %>%
+  pull(sample_id) %>%
+  str_count("\\.") %>%  # Count number of periods in each ID
+  table()
+
+```
