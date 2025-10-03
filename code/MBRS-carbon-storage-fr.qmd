@@ -33,6 +33,7 @@ library(performance)
 library(rstatix)
 library(viridis)
 library(hrbrthemes)
+library(plotly)
 
 raw_data <- read_csv("data/blue-carbon-r-raw-data-post-combustion-final.csv")
 
@@ -148,9 +149,9 @@ ggplot(data = std_data) +
 
 ```
 
-```{r viiolin plot}
+```{r violin plot}
 
-std_data |> 
+std_violin <- std_data |> 
   ggplot( aes(x=site, y=std_carbon, fill=site)) + #violin plot by site
     geom_violin() +
     scale_fill_viridis(discrete = TRUE, alpha=0.6, option="A") +
@@ -163,10 +164,147 @@ std_data |>
          x = "Site",
          y = "Standardized Carbon Stock (t/ha)")
 
-
+ggplotly(std_violin)
 ```
 
 ```{r violin of seagrass and unveg only}
 
+no_mangrove_data = std_data |> filter(!vegetation_type %in% c("Mangrove"))
+  
+
+no_mangrove_violin <- no_mangrove_data |> 
+  ggplot( aes(x=site, y=std_carbon, fill=site)) + #violin plot by site
+    geom_violin() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6, option="A") +
+    theme_minimal() +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=11)
+    ) +
+    labs(title = "Cumulative sediment carbon stock of seagrass and unvegetated areas across sites of interest",
+         x = "Site",
+         y = "Standardized Carbon Stock (t/ha)")
+
+ggplotly(no_mangrove_violin)
+
+```
+
+```{r scatterplot with no mangroves}
+
+ggplot(data = no_mangrove_data) +
+  geom_jitter(
+       aes(x = dist_to_mangroves,
+       y = std_carbon,
+       color = vegetation_type),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Proximity to Mangroves(m)",
+        y = "Standardized Carbon Stock (t/ha)",
+        color = "Vegetation Type",
+        title = "Effects of proximity of mangrove forests to vegetation on sediment carbon stock") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482277","#287D8E", "#B8DE29"))
+
+
+```
+
+```{r kruskal with no mangroves}
+
+kruskal.test(std_carbon ~ site, data = no_mangrove_data)  #chi-squared = 18.84, df = 2, p-value = 8.109e-05
+
+
+dunn_test(no_mangrove_data, std_carbon ~ site, p.adjust.method = "bonferroni") |> 
+  # adams and one mile signif, adams and myora very signif
+  filter(p.adj < 0.05) |>   # Show only significant comparisons
+  select(group1, group2, p.adj, p.adj.signif)
+
+summary(no_mangrove_data)
+```
+
+```{r seagrass kruskal}
+
+seagrass_data <- std_data |> 
+  filter(vegetation_type == "Seagrass") 
+
+kruskal.test(std_carbon ~ site, data = seagrass_data)  #chi-squared = 18.84, df = 2, p-value = 8.109e-05
+
+
+dunn_test(seagrass_data, std_carbon ~ site, p.adjust.method = "bonferroni") |> 
+  # adams and one mile signif, adams and myora very signif
+  filter(p.adj < 0.05) |>   # Show only significant comparisons
+  select(group1, group2, p.adj, p.adj.signif)
+
+summary(seagrass_data)
+```
+
+```{r seagrass scatterplot}
+ggplot(data = seagrass_data) +
+  geom_jitter(
+       aes(x = dist_to_mangroves,
+       y = std_carbon,
+       color = site),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Proximity to Mangroves(m)",
+        y = "Standardized Carbon Stock (t/ha)",
+        color = "Site",
+        title = "Effects of proximity of mangrove forests to seagrass on sediment carbon stock") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482277","#287D8E", "#B8DE29"))
+```
+
+```{r unveg kruskal}
+
+unveg_data <- std_data |> 
+  filter(vegetation_type == "Unveg") 
+
+kruskal.test(std_carbon ~ site, data = unveg_data)  #chi-squared = 18.84, df = 2, p-value = 8.109e-05
+
+
+dunn_test(unveg_data, std_carbon ~ site, p.adjust.method = "bonferroni") |> 
+  # adams and one mile signif, adams and myora very signif
+  filter(p.adj < 0.05) |>   # Show only significant comparisons
+  select(group1, group2, p.adj, p.adj.signif)
+
+summary(unveg_data)
+```
+
+```{r unveg scatterplot}
+unveg_scatterplot <- ggplot(data = unveg_data) +
+  geom_jitter(
+       aes(x = dist_to_mangroves,
+       y = std_carbon,
+       color = site),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Proximity to Mangroves(m)",
+        y = "Standardized Carbon Stock (t/ha)",
+        color = "Site",
+        title = "Effects of proximity of mangrove forests to unvegetated areas on sediment carbon stock") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482277","#287D8E", "#B8DE29")) 
+
+ggplotly(unveg_scatterplot)
 ```
 
