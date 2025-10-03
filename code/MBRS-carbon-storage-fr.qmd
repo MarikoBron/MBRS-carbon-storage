@@ -31,14 +31,16 @@ library(ggplot2)
 library(emmeans)
 library(performance)
 library(rstatix)
+library(viridis)
+library(hrbrthemes)
 
-raw_data <- read_csv("data/blue-carbon-R-raw-data-post-combustion-2.csv")
+raw_data <- read_csv("data/blue-carbon-r-raw-data-post-combustion-final.csv")
 
 ```
 
 ```{r clean}
 
-clean_practice <- clean_names(raw_data) |> 
+clean_data <- clean_names(raw_data) |> 
 mutate(vegetation_type = as_factor(vegetation_type), #convert to factor
         vegetation_type = fct_relevel(vegetation_type,  #reorder
                                         "Unveg",
@@ -49,21 +51,122 @@ mutate(vegetation_type = as_factor(vegetation_type), #convert to factor
                             "Adams",
                             "One Mile",
                             "Myora"),
-         sample_id = str_remove(sample_id, "\\*")) |> 
-  select(sample_id, vegetation_type, site, mangroves, bulk_density_g_cm_3, percent_loi_percent_lost_on_ignition, carbon_stock_t_ha_tons_per_hectare) |> 
+         sample_id = str_remove(sample_id, "\\*")) |> #remove asterisks
+  
+   filter(!sample_id %in% c("MU.1.44.5")) |>  #remove extra datapoint 
+  
+    separate(sample_id, 
+           into = c("habitat_code", "site_code", "depth"), 
+           sep = "\\.",  # Split on periods
+           remove = FALSE) |>   # Keep original sample_id column
+  mutate(depth = as.numeric(depth)) |>   # Convert depth to number 
+  
+  select(habitat_code, site_code, depth, vegetation_type, site, bulk_density_g_cm_3, percent_loi_percent_lost_on_ignition, carbon_in_common_units_mg_c_hectare, distance_to_nearest_mangrove_m, distance_to_nearest_seagrass_m, height_of_sample_cylinder_sample_cm) |> 
   #select columns for table
+  
   rename(bulk_density = bulk_density_g_cm_3,
          percent_loi = percent_loi_percent_lost_on_ignition,
-         carbon_stock = carbon_stock_t_ha_tons_per_hectare,
-         mangrove_proximity = mangroves)  #rename columns
+         carbon_stock = carbon_in_common_units_mg_c_hectare,
+         dist_to_mangroves = distance_to_nearest_mangrove_m,
+         dist_to_seagrass = distance_to_nearest_seagrass_m,
+         height = height_of_sample_cylinder_sample_cm)   #rename columns
+  
 
-unfindata <- clean_practice |> 
-  filter(!sample_id %in% c("S.2.4", "S.2.10", "U.2.40"))
+#standardize samples in new dataset std_data
+std_data = clean_data |> 
+  mutate(std_carbon = case_when(
+    height != 2 ~ (carbon_stock/(height/2)),
+    TRUE ~ carbon_stock
+  )) |> 
+    select(habitat_code, site_code, depth, vegetation_type, site, std_carbon, height, dist_to_mangroves, dist_to_seagrass) |>  #chose data of interest
+  mutate(dist_to_mangroves = as.factor(dist_to_mangroves)) #make mangrove dist a factor
 
-unfindata %>%
-  filter(vegetation_type == "Seagrass") %>%
-  pull(sample_id) %>%
-  str_count("\\.") %>%  # Count number of periods in each ID
-  table()
+ 
+```
+
+```{r kruskal}
+
+kruskal.test(std_carbon ~ site, data = std_data)  #chi-squared = 18.84, df = 2, p-value = 8.109e-05
+
+
+dunn_test(std_data, std_carbon ~ site, p.adjust.method = "bonferroni") |> 
+  # adams and one mile signif, adams and myora very signif
+  filter(p.adj < 0.05) |>   # Show only significant comparisons
+  select(group1, group2, p.adj, p.adj.signif)
+
+summary(std_data)
+```
+
+```{r scatterplot by veg}
+
+ggplot(data = std_data) +
+  geom_jitter(
+       aes(x = dist_to_mangroves,
+       y = std_carbon,
+       color = vegetation_type),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Proximity to Mangroves(m)",
+        y = "Standardized Carbon Stock (t/ha)",
+        color = "Vegetation Type",
+        title = "Effects of proximity of mangrove forests to vegetation on sediment carbon stock") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482277","#287D8E", "#B8DE29"))
+
 
 ```
+
+```{r scatterplot by site}
+
+ggplot(data = std_data) +
+  geom_jitter(
+       aes(x = dist_to_mangroves,
+       y = std_carbon,
+       color = site),
+       width = 0.3,
+              height = 0,
+              shape = 16, 
+              alpha = 0.7,
+       size = 2.3) +
+  labs( x = "Proximity to Mangroves(m)",
+        y = "Standardized Carbon Stock (t/ha)",
+        color = "Site",
+        title = "Effects of proximity of mangrove forests to sites on sediment carbon stock") +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(fill = NA),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  )+
+  scale_colour_manual(values = c("#482277","#287D8E", "#B8DE29"))
+
+```
+
+```{r viiolin plot}
+
+std_data |> 
+  ggplot( aes(x=site, y=std_carbon, fill=site)) + #violin plot by site
+    geom_violin() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6, option="A") +
+    theme_minimal() +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=11)
+    ) +
+    labs(title = "Cumulative sediment carbon stock across sites of interest",
+         x = "Site",
+         y = "Standardized Carbon Stock (t/ha)")
+
+
+```
+
+```{r violin of seagrass and unveg only}
+
+```
+
